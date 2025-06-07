@@ -22,8 +22,9 @@ func main() {
 	server_mux := http.NewServeMux()
 	file_server := http.FileServer(http.Dir(filepathRoot))
 	server_mux.Handle("/app/", api_cfg.middlewareMetricsInc(http.StripPrefix("/app", file_server)))
-	server_mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	server_mux.HandleFunc("GET /admin/metrics", api_cfg.handlerMetrics)
+	server_mux.HandleFunc("GET  /api/healthz", handlerReadiness)
+	server_mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
+	server_mux.HandleFunc("GET  /admin/metrics", api_cfg.handlerMetrics)
 	server_mux.HandleFunc("POST /admin/reset", api_cfg.handlerResetMetrics)
 
 	server_struct := &http.Server{
