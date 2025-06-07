@@ -3,12 +3,14 @@ package main
 import (
 	"os"
 	"log"
+	"time"
 	"net/http"
 	"sync/atomic"
 	"database/sql"
 
 	_ "github.com/lib/pq"
 	"github.com/joho/godotenv"
+	"github.com/google/uuid"
 
 	"github.com/t6kke/chirpy/internal/database"
 )
@@ -16,11 +18,20 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbq            *database.Queries
+	platform        string
+}
+
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
 }
 
 func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
 	const filepathRoot = "."
 	const port = "8080"
 
@@ -35,6 +46,7 @@ func main() {
 	api_cfg := apiConfig{
 		fileserverHits: counter,
 		dbq:            dbQueries,
+		platform:       platform,
 	}
 
 	server_mux := http.NewServeMux()
@@ -42,8 +54,9 @@ func main() {
 	server_mux.Handle("/app/", api_cfg.middlewareMetricsInc(http.StripPrefix("/app", file_server)))
 	server_mux.HandleFunc("GET  /api/healthz", handlerReadiness)
 	server_mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
+	server_mux.HandleFunc("POST /api/users", api_cfg.handlerAddUser)
 	server_mux.HandleFunc("GET  /admin/metrics", api_cfg.handlerMetrics)
-	server_mux.HandleFunc("POST /admin/reset", api_cfg.handlerResetMetrics)
+	server_mux.HandleFunc("POST /admin/reset", api_cfg.handlerReset)
 
 	server_struct := &http.Server{
 		Addr:    ":"+ port,
