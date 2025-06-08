@@ -3,14 +3,12 @@ package main
 import (
 	"os"
 	"log"
-	"time"
 	"net/http"
 	"sync/atomic"
 	"database/sql"
 
 	_ "github.com/lib/pq"
 	"github.com/joho/godotenv"
-	"github.com/google/uuid"
 
 	"github.com/t6kke/chirpy/internal/database"
 )
@@ -19,13 +17,6 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbq            *database.Queries
 	platform        string
-}
-
-type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
 }
 
 func main() {
@@ -53,7 +44,7 @@ func main() {
 	file_server := http.FileServer(http.Dir(filepathRoot))
 	server_mux.Handle("/app/", api_cfg.middlewareMetricsInc(http.StripPrefix("/app", file_server)))
 	server_mux.HandleFunc("GET  /api/healthz", handlerReadiness)
-	server_mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
+	server_mux.HandleFunc("POST /api/chirps", api_cfg.handlerAddChirp)
 	server_mux.HandleFunc("POST /api/users", api_cfg.handlerAddUser)
 	server_mux.HandleFunc("GET  /admin/metrics", api_cfg.handlerMetrics)
 	server_mux.HandleFunc("POST /admin/reset", api_cfg.handlerReset)

@@ -17,7 +17,7 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	err := cfg.dbq.DeleteAllUsers(r.Context())
 	if err != nil {
 		log.Printf("Error deleting users: %s", err)
-		w.WriteHeader(500) //TODO need better response to return info that user already exists
+		w.WriteHeader(500) //TODO need better response to return info that deletion failed
 		return
 	}
 

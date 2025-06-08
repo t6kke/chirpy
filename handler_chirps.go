@@ -2,14 +2,31 @@ package main
 
 import (
 	"log"
+	"time"
 	"strings"
 	"net/http"
 	"encoding/json"
+
+	"github.com/google/uuid"
+
+	"github.com/t6kke/chirpy/internal/database"
 )
 
-func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
+type Chirp struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
+func (cfg *apiConfig) handlerAddChirp(w http.ResponseWriter, r *http.Request) {
 	type chirp_body struct {
 		Body string `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
+	}
+	type error_return struct {
+		Error string `json:"error"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -19,10 +36,6 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error decoding parameters: %s", err)
 		w.WriteHeader(500)
 		return
-	}
-
-	type error_return struct {
-		Error string `json:"error"`
 	}
 
 	if len(c_body.Body) > 140 {
@@ -43,21 +56,33 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 
 	new_c_body := checkProfane(c_body.Body)
 
-	type success_return struct {
-		Cleaned_Body string `json:"cleaned_body"`
+	query_insert_parameters := database.CreateChirpParams{
+		Body:   new_c_body,
+		UserID: c_body.UserID,
 	}
 
-	success_response_body := success_return{
-		Cleaned_Body: new_c_body,
+	db_chirp, err := cfg.dbq.CreateChirp(r.Context(), query_insert_parameters)
+	if err != nil {
+		log.Printf("Error creating user: %s", err)
+		w.WriteHeader(500) //TODO need better response to return info that failed to add chirp
+		return
 	}
-	response_data, err := json.Marshal(success_response_body)
+
+	response_chirp := Chirp{
+		ID:        db_chirp.ID,
+		CreatedAt: db_chirp.CreatedAt,
+		UpdatedAt: db_chirp.UpdatedAt,
+		Body:      db_chirp.Body,
+		UserID:    db_chirp.UserID,
+	}
+	response_data, err := json.Marshal(response_chirp)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
 		w.WriteHeader(500)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	w.Write(response_data)
 }
 

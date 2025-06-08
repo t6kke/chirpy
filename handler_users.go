@@ -2,10 +2,19 @@ package main
 
 import (
 	"log"
+	"time"
 	"net/http"
 	"encoding/json"
+
+	"github.com/google/uuid"
 )
 
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
 
 func (cfg *apiConfig) handlerAddUser(w http.ResponseWriter, r *http.Request) {
 	type newRequestedUserEmail struct {
