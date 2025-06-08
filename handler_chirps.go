@@ -20,6 +20,40 @@ type Chirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
+func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
+	db_all_chirps, err := cfg.dbq.GetAllChirps(r.Context())
+	if err != nil {
+		log.Printf("Error creating user: %s", err)
+		w.WriteHeader(500) //TODO need better response to return info that failed to retreive all chirps
+		return
+	}
+
+	result_slice := make([]Chirp, 0)
+
+	for _, db_chirp := range db_all_chirps {
+		response_chirp := Chirp{
+			ID:        db_chirp.ID,
+			CreatedAt: db_chirp.CreatedAt,
+			UpdatedAt: db_chirp.UpdatedAt,
+			Body:      db_chirp.Body,
+			UserID:    db_chirp.UserID,
+		}
+		result_slice = append(result_slice, response_chirp)
+	}
+
+
+	response_data, err := json.Marshal(result_slice)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response_data)
+}
+
+
 func (cfg *apiConfig) handlerAddChirp(w http.ResponseWriter, r *http.Request) {
 	type chirp_body struct {
 		Body string `json:"body"`
