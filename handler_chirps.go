@@ -53,6 +53,42 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 	w.Write(response_data)
 }
 
+func (cfg *apiConfig) handlerGetOneChirp(w http.ResponseWriter, r *http.Request) {
+	requested_uudi := r.PathValue("chirpID")
+
+	c_uuid, err := uuid.Parse(requested_uudi)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+
+	db_chirp, err := cfg.dbq.GetOneChirp(r.Context(), c_uuid)
+	if err != nil {
+		log.Printf("Error creating user: %s", err)
+		w.WriteHeader(404)
+		return
+	}
+
+	response_chirp := Chirp{
+		ID:        db_chirp.ID,
+		CreatedAt: db_chirp.CreatedAt,
+		UpdatedAt: db_chirp.UpdatedAt,
+		Body:      db_chirp.Body,
+		UserID:    db_chirp.UserID,
+	}
+
+	response_data, err := json.Marshal(response_chirp)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response_data)
+}
 
 func (cfg *apiConfig) handlerAddChirp(w http.ResponseWriter, r *http.Request) {
 	type chirp_body struct {
