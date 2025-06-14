@@ -3,16 +3,18 @@ package auth
 import (
 	"fmt"
 	"time"
+	"errors"
 
 	"golang.org/x/crypto/bcrypt"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-type MyCustomClaims struct {
-	Foo string `json:"foo"`
-	jwt.RegisteredClaims
-}
+type TokenType string
+
+const (
+	TokenTypeAccess TokenType = "chirpy"
+)
 
 func HashPassword(password string) (string, error) {
 	byte_pass_hash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
@@ -35,7 +37,7 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 	claims := jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    "chirpy", //TODO issuer should be constant outside the function
+		Issuer:    string(TokenTypeAccess),
 		Subject:   userID.String(),
 	}
 
@@ -56,9 +58,23 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	//TODO validate issuer against the actual value
-	user_id, _ := token.Claims.GetSubject() //TODO handle error
-	return_uuid, _ := uuid.Parse(user_id) //TODO handle error
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if issuer != string(TokenTypeAccess) {
+		return uuid.Nil, errors.New("invalid issuer")
+	}
+
+	user_id, err := token.Claims.GetSubject()
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("token did not have user ID: %w", err)
+	}
+
+	return_uuid, err := uuid.Parse(user_id)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid user ID: %w", err)
+	}
 
 	return return_uuid, nil
 }
