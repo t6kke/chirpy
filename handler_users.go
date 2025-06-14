@@ -17,6 +17,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 func (cfg *apiConfig) handlerAddUser(w http.ResponseWriter, r *http.Request) {
@@ -72,8 +73,9 @@ func (cfg *apiConfig) handlerAddUser(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	type RequestedUser struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password     string        `json:"password"`
+		Email        string        `json:"email"`
+		ExpiresInSec time.Duration `json:"expires_in_seconds"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -83,6 +85,12 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error decoding parameters: %s", err)
 		w.WriteHeader(500)
 		return
+	}
+
+	if new_user_req.ExpiresInSec <=0 || new_user_req.ExpiresInSec >= 3600 {
+		new_user_req.ExpiresInSec = 3600 * time.Second
+	} else {
+		new_user_req.ExpiresInSec = new_user_req.ExpiresInSec * time.Second
 	}
 
 	db_user, err := cfg.dbq.FindUserWithEmail(r.Context(), new_user_req.Email)
@@ -100,11 +108,19 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := auth.MakeJWT(db_user.ID, cfg.c_secret, new_user_req.ExpiresInSec)
+	if err != nil {
+		log.Printf("Failed to generate token: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
 	response_user := User{
 		ID:        db_user.ID,
 		CreatedAt: db_user.CreatedAt,
 		UpdatedAt: db_user.UpdatedAt,
 		Email:     db_user.Email,
+		Token:     token,
 	}
 	response_data, err := json.Marshal(response_user)
 	if err != nil {

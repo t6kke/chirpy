@@ -3,6 +3,7 @@ package auth
 import (
 	"testing"
 	"time"
+	"net/http"
 
 	"github.com/google/uuid"
 )
@@ -105,6 +106,56 @@ func TestCheckJWT(t *testing.T) {
 			}
 			if gotUserID != tt.wantUserID {
 				t.Errorf("ValidateJWT() gotUserID = %v, want %v", gotUserID, tt.wantUserID)
+			}
+		})
+	}
+}
+
+
+func TestCheckBarerTokenExtract(t *testing.T) {
+	headers_ok := http.Header{}
+	headers_ok.Set("Authorization", "Bearer 1234ABCD")
+
+	headers_nothing := http.Header{}
+
+	headers_bad := http.Header{}
+	headers_bad.Set("Authorization", "1234ABCD")
+
+	tests := []struct {
+		name      string
+		headers   http.Header
+		wantToken string
+		wantErr   bool
+	}{
+		{
+			name:      "Valid extraction",
+			headers:   headers_ok,
+			wantToken: "1234ABCD",
+			wantErr:   false,
+		},
+		{
+			name:      "No headers",
+			headers:   headers_nothing,
+			wantToken: "",
+			wantErr:   true,
+		},
+		{
+			name:      "Bearer not in token",
+			headers:   headers_bad,
+			wantToken: "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := GetBearerToken(tt.headers)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBearerToken() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if token != tt.wantToken {
+				t.Errorf("GetBearerToken() token = %v, want %v", token, tt.wantToken)
 			}
 		})
 	}

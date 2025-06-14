@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 	"errors"
+	"strings"
+	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
 	"github.com/golang-jwt/jwt/v5"
@@ -33,10 +35,24 @@ func CheckPasswordHash(hash, password string) error {
 	return nil
 }
 
+func GetBearerToken(headers http.Header) (string, error) {
+	auth_token := headers.Get("Authorization")
+	if auth_token == "" {
+		return "", errors.New("No \"Authorization\" in header")
+	}
+
+	token_split := strings.Split(auth_token, " ")
+	if len(token_split) != 2 {
+		return "", errors.New("Invalid token string format in \"Authorization\"")
+	}
+
+	return token_split[1], nil
+}
+
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
 	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
+		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiresIn)),
 		Issuer:    string(TokenTypeAccess),
 		Subject:   userID.String(),
 	}
@@ -44,7 +60,9 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	result_string, err := token.SignedString([]byte(tokenSecret))
-	fmt.Println(result_string, err)
+	if err != nil {
+		return "", err
+	}
 
 	return result_string, nil
 }

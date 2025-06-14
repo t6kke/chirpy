@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/t6kke/chirpy/internal/database"
+	"github.com/t6kke/chirpy/internal/auth"
 )
 
 type Chirp struct {
@@ -93,15 +94,29 @@ func (cfg *apiConfig) handlerGetOneChirp(w http.ResponseWriter, r *http.Request)
 func (cfg *apiConfig) handlerAddChirp(w http.ResponseWriter, r *http.Request) {
 	type chirp_body struct {
 		Body string `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
 	}
 	type error_return struct {
 		Error string `json:"error"`
 	}
 
+	token_from_header, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Failed to extract token from header: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Failed to extract token from header"))
+		return
+	}
+	user_id_from_token, err := auth.ValidateJWT(token_from_header, cfg.c_secret)
+	if err != nil {
+		log.Printf("Token mismatch: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Invalid Token"))
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	c_body := chirp_body{}
-	err := decoder.Decode(&c_body)
+	err = decoder.Decode(&c_body)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		w.WriteHeader(500)
@@ -128,7 +143,7 @@ func (cfg *apiConfig) handlerAddChirp(w http.ResponseWriter, r *http.Request) {
 
 	query_insert_parameters := database.CreateChirpParams{
 		Body:   new_c_body,
-		UserID: c_body.UserID,
+		UserID: user_id_from_token,
 	}
 
 	db_chirp, err := cfg.dbq.CreateChirp(r.Context(), query_insert_parameters)
