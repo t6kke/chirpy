@@ -13,11 +13,12 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Token     string    `json:"token"`
+	ID           uuid.UUID `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Email        string    `json:"email"`
+	Token        string    `json:"token"`
+	RefreshToken string    `json:"refresh_token"`
 }
 
 func (cfg *apiConfig) handlerAddUser(w http.ResponseWriter, r *http.Request) {
@@ -114,13 +115,33 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
+	refresh_token, err := auth.MakeRefreshToken()
+	if err != nil {
+		log.Printf("Failed to generate refresh token: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	r_token_insert_param := database.CreateRefreshTokenParams{
+		Token:     refresh_token,
+		ExpiresAt: time.Now().AddDate(0, 0, 60),
+		UserID:    db_user.ID,
+	}
+
+	_, err = cfg.dbq.CreateRefreshToken(r.Context(), r_token_insert_param)
+	if err != nil {
+		log.Printf("Failed to insert refresh token to DB: %s", err)
+		w.WriteHeader(500)
+		return
+	}
 
 	response_user := User{
-		ID:        db_user.ID,
-		CreatedAt: db_user.CreatedAt,
-		UpdatedAt: db_user.UpdatedAt,
-		Email:     db_user.Email,
-		Token:     token,
+		ID:           db_user.ID,
+		CreatedAt:    db_user.CreatedAt,
+		UpdatedAt:    db_user.UpdatedAt,
+		Email:        db_user.Email,
+		Token:        token,
+		RefreshToken: refresh_token,
 	}
 	response_data, err := json.Marshal(response_user)
 	if err != nil {
@@ -131,4 +152,67 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(response_data)
+}
+
+func (cfg *apiConfig) handlerRefreshToken(w http.ResponseWriter, r *http.Request) {
+	refresh_token_from_header, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Failed to extract refresh token from header: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Failed to extract refresh token from header"))
+		return
+	}
+
+	db_user_from_r_token, err := cfg.dbq.GetUserFromRefreshToken(r.Context(), refresh_token_from_header)
+	if err != nil {
+		log.Printf("No valid refresh token found: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("No valid refresh token found"))
+		return
+	}
+
+	new_JWT, err := auth.MakeJWT(db_user_from_r_token, cfg.c_secret, 3600 * time.Second)
+	if err != nil {
+		log.Printf("Failed to generate token: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	type returntoken struct {
+		Token string `json:"token"`
+	}
+	return_token := returntoken{
+		Token: new_JWT,
+	}
+
+	response_data, err := json.Marshal(return_token)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response_data)
+}
+
+func (cfg *apiConfig) handlerRevokeToken(w http.ResponseWriter, r *http.Request) {
+	refresh_token_from_header, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Failed to extract refresh token from header: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Failed to extract refresh token from header"))
+		return
+	}
+
+	_, err = cfg.dbq.RevokeRefreshToken(r.Context(), refresh_token_from_header)
+	if err != nil {
+		log.Printf("No valid refresh token found: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("No valid refresh token found"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
 }
