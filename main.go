@@ -16,13 +16,24 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbq            *database.Queries
-	platform        string
+	platform       string
+	c_secret       string
 }
 
 func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL must be set")
+	}
 	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM must be set")
+	}
+	chirpy_secret := os.Getenv("CHIRPY_SECRET")
+	if chirpy_secret == "" {
+		log.Fatal("CHIRPY_SECRET must be set")
+	}
 	const filepathRoot = "."
 	const port = "8080"
 
@@ -38,6 +49,7 @@ func main() {
 		fileserverHits: counter,
 		dbq:            dbQueries,
 		platform:       platform,
+		c_secret:       chirpy_secret,
 	}
 
 	server_mux := http.NewServeMux()
@@ -48,6 +60,9 @@ func main() {
 	server_mux.HandleFunc("GET /api/chirps/{chirpID}", api_cfg.handlerGetOneChirp)
 	server_mux.HandleFunc("POST /api/chirps", api_cfg.handlerAddChirp)
 	server_mux.HandleFunc("POST /api/users", api_cfg.handlerAddUser)
+	server_mux.HandleFunc("POST /api/login", api_cfg.handlerUserLogin)
+	server_mux.HandleFunc("POST /api/refresh", api_cfg.handlerRefreshToken)
+	server_mux.HandleFunc("POST /api/revoke", api_cfg.handlerRevokeToken)
 	server_mux.HandleFunc("GET /admin/metrics", api_cfg.handlerMetrics)
 	server_mux.HandleFunc("POST /admin/reset", api_cfg.handlerReset)
 
