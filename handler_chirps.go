@@ -67,7 +67,7 @@ func (cfg *apiConfig) handlerGetOneChirp(w http.ResponseWriter, r *http.Request)
 
 	db_chirp, err := cfg.dbq.GetOneChirp(r.Context(), c_uuid)
 	if err != nil {
-		log.Printf("Error creating user: %s", err)
+		log.Printf("Error getting chirp: %s", err)
 		w.WriteHeader(404)
 		return
 	}
@@ -169,6 +169,54 @@ func (cfg *apiConfig) handlerAddChirp(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(response_data)
+}
+
+func (cfg *apiConfig) handlerDeleteOneChirp(w http.ResponseWriter, r *http.Request) {
+	requested_chirp_uudi := r.PathValue("chirpID")
+	c_uuid, err := uuid.Parse(requested_chirp_uudi)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	token_from_header, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Failed to extract token from header: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Failed to extract token from header"))
+		return
+	}
+	user_id_from_token, err := auth.ValidateJWT(token_from_header, cfg.c_secret)
+	if err != nil {
+		log.Printf("Token mismatch: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Invalid Token"))
+		return
+	}
+
+	db_chirp, err := cfg.dbq.GetOneChirp(r.Context(), c_uuid)
+	if err != nil {
+		log.Printf("Error getting chirp: %s", err)
+		w.WriteHeader(404)
+		return
+	}
+
+	if user_id_from_token != db_chirp.UserID {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	err = cfg.dbq.DeleteOneChirp(r.Context(), c_uuid)
+	if err != nil {
+		log.Printf("Error deleting chirp from DB: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func checkProfane(input string) string {
