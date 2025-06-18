@@ -216,3 +216,70 @@ func (cfg *apiConfig) handlerRevokeToken(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (cfg *apiConfig) handlerUpdateUserPwEm(w http.ResponseWriter, r *http.Request) {
+	token_from_header, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Failed to extract token from header: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Failed to extract token from header"))
+		return
+	}
+	user_id_from_token, err := auth.ValidateJWT(token_from_header, cfg.c_secret)
+	if err != nil {
+		log.Printf("Token mismatch: %s", err)
+		w.WriteHeader(401)
+		w.Write([]byte("Invalid Token"))
+		return
+	}
+
+	//TODO maybe before proceeding we need to check if user currently also exists in DB
+
+	type RequestedUpdate struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	requested_update := RequestedUpdate{}
+	err = decoder.Decode(&requested_update)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	hashed_password, err := auth.HashPassword(requested_update.Password)
+	if err != nil {
+		log.Printf("Error hashing password: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	update_parameters := database.UpdatePasswordAndEmailParams{
+		ID:             user_id_from_token,
+		Email:          requested_update.Email,
+		HashedPassword: hashed_password,
+	}
+
+	db_user, err := cfg.dbq.UpdatePasswordAndEmail(r.Context(), update_parameters)
+	if err != nil {
+		log.Printf("Error updateing user email and password: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	response_user := User{
+		ID:        db_user.ID,
+		CreatedAt: db_user.CreatedAt,
+		UpdatedAt: db_user.UpdatedAt,
+		Email:     db_user.Email,
+	}
+	response_data, err := json.Marshal(response_user)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response_data)
+}

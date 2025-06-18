@@ -60,6 +60,7 @@ func main() {
 	server_mux.HandleFunc("GET /api/chirps/{chirpID}", api_cfg.handlerGetOneChirp)
 	server_mux.HandleFunc("POST /api/chirps", api_cfg.handlerAddChirp)
 	server_mux.HandleFunc("POST /api/users", api_cfg.handlerAddUser)
+	server_mux.HandleFunc("PUT /api/users", api_cfg.handlerUpdateUserPwEm)
 	server_mux.HandleFunc("POST /api/login", api_cfg.handlerUserLogin)
 	server_mux.HandleFunc("POST /api/refresh", api_cfg.handlerRefreshToken)
 	server_mux.HandleFunc("POST /api/revoke", api_cfg.handlerRevokeToken)
