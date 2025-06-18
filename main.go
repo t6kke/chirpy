@@ -58,6 +58,7 @@ func main() {
 	server_mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	server_mux.HandleFunc("GET /api/chirps", api_cfg.handlerGetAllChirps)
 	server_mux.HandleFunc("GET /api/chirps/{chirpID}", api_cfg.handlerGetOneChirp)
+	server_mux.HandleFunc("DELETE /api/chirps/{chirpID}", api_cfg.handlerDeleteOneChirp)
 	server_mux.HandleFunc("POST /api/chirps", api_cfg.handlerAddChirp)
 	server_mux.HandleFunc("POST /api/users", api_cfg.handlerAddUser)
 	server_mux.HandleFunc("PUT /api/users", api_cfg.handlerUpdateUserPwEm)
