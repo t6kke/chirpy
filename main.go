@@ -18,6 +18,7 @@ type apiConfig struct {
 	dbq            *database.Queries
 	platform       string
 	c_secret       string
+	p_key          string
 }
 
 func main() {
@@ -33,6 +34,10 @@ func main() {
 	chirpy_secret := os.Getenv("CHIRPY_SECRET")
 	if chirpy_secret == "" {
 		log.Fatal("CHIRPY_SECRET must be set")
+	}
+	polka_key := os.Getenv("POLKA_KEY")
+	if polka_key == "" {
+		log.Fatal("POLKA_KEY must be set")
 	}
 	const filepathRoot = "."
 	const port = "8080"
@@ -50,6 +55,7 @@ func main() {
 		dbq:            dbQueries,
 		platform:       platform,
 		c_secret:       chirpy_secret,
+		p_key:          polka_key,
 	}
 
 	server_mux := http.NewServeMux()
@@ -65,6 +71,7 @@ func main() {
 	server_mux.HandleFunc("POST /api/login", api_cfg.handlerUserLogin)
 	server_mux.HandleFunc("POST /api/refresh", api_cfg.handlerRefreshToken)
 	server_mux.HandleFunc("POST /api/revoke", api_cfg.handlerRevokeToken)
+	server_mux.HandleFunc("POST /api/polka/webhooks", api_cfg.handlerPolkaPaymentUpgrade)
 	server_mux.HandleFunc("GET /admin/metrics", api_cfg.handlerMetrics)
 	server_mux.HandleFunc("POST /admin/reset", api_cfg.handlerReset)
 

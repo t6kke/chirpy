@@ -46,7 +46,25 @@ func GetBearerToken(headers http.Header) (string, error) {
 		return "", errors.New("Invalid token string format in \"Authorization\"")
 	}
 
+	//TODO should also validate that it's Bearer token
+
 	return token_split[1], nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	apikey_from_header := headers.Get("Authorization")
+	if apikey_from_header == "" {
+		return "", errors.New("No \"Authorization\" in header")
+	}
+
+	apikey := strings.Split(apikey_from_header, " ")
+	if len(apikey) != 2 {
+		return "", errors.New("Invalid token string format in \"Authorization\"")
+	}
+
+	//TODO should also validate that it's ApiKey token
+
+	return apikey[1], nil
 }
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
