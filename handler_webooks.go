@@ -6,11 +6,23 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
-
-	//"github.com/t6kke/chirpy/internal/database"
+	"github.com/t6kke/chirpy/internal/auth"
 )
 
 func (cfg *apiConfig) handlerPolkaPaymentUpgrade(w http.ResponseWriter, r *http.Request) {
+	api_key_from_header, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		log.Printf("Failed to extract API key from header: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+
+	if api_key_from_header != cfg.p_key {
+		log.Printf("API key in header does not match")
+		w.WriteHeader(401)
+		return
+	}
+
 	type InputDataStruct struct {
 		Event string `json:"event"`
 		Data  struct {
@@ -20,7 +32,7 @@ func (cfg *apiConfig) handlerPolkaPaymentUpgrade(w http.ResponseWriter, r *http.
 
 	decoder := json.NewDecoder(r.Body)
 	input_data := InputDataStruct{}
-	err := decoder.Decode(&input_data)
+	err = decoder.Decode(&input_data)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		w.WriteHeader(500)
