@@ -17,6 +17,7 @@ type User struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	Email        string    `json:"email"`
+	ChirpyRed    bool      `json:"is_chirpy_red"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
 }
@@ -60,6 +61,7 @@ func (cfg *apiConfig) handlerAddUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: db_user.CreatedAt,
 		UpdatedAt: db_user.UpdatedAt,
 		Email:     db_user.Email,
+		ChirpyRed: db_user.IsChirpyRed,
 	}
 	response_data, err := json.Marshal(response_user)
 	if err != nil {
@@ -140,6 +142,7 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    db_user.CreatedAt,
 		UpdatedAt:    db_user.UpdatedAt,
 		Email:        db_user.Email,
+		ChirpyRed: db_user.IsChirpyRed,
 		Token:        token,
 		RefreshToken: refresh_token,
 	}
@@ -272,6 +275,7 @@ func (cfg *apiConfig) handlerUpdateUserPwEm(w http.ResponseWriter, r *http.Reque
 		CreatedAt: db_user.CreatedAt,
 		UpdatedAt: db_user.UpdatedAt,
 		Email:     db_user.Email,
+		ChirpyRed: db_user.IsChirpyRed,
 	}
 	response_data, err := json.Marshal(response_user)
 	if err != nil {
