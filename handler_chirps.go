@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"sort"
 	"time"
 	"strings"
 	"net/http"
@@ -48,7 +49,6 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-
 	result_slice := make([]Chirp, 0)
 
 	for _, db_chirp := range db_all_chirps {
@@ -62,6 +62,10 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 		result_slice = append(result_slice, response_chirp)
 	}
 
+	sort_order := r.URL.Query().Get("sort")
+	if sort_order == "desc" {
+		sort.Slice(result_slice, func(i, j int) bool {return result_slice[i].CreatedAt.After(result_slice[j].CreatedAt)})
+	}
 
 	response_data, err := json.Marshal(result_slice)
 	if err != nil {

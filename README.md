@@ -47,6 +47,8 @@ Returns all chirps in creation date ascending order.
 
 Accespts optional url query parameter '?author_id=' to get specific authors chiprs
 
+Accespts optional url query parameter '?sort=' that accepts values 'asc' or 'desc' to provide the chiprs specific order based on created_at time.
+
 Request Type: **POST**
 
 Stores the new chirp to the database, example body:
