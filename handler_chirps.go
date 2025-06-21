@@ -22,12 +22,32 @@ type Chirp struct {
 }
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
-	db_all_chirps, err := cfg.dbq.GetAllChirps(r.Context())
-	if err != nil {
-		log.Printf("Error creating user: %s", err)
-		w.WriteHeader(500) //TODO need better response to return info that failed to retreive all chirps
-		return
+	db_all_chirps := make([]database.Chirp, 0)
+	author_id_parameter := r.URL.Query().Get("author_id")
+	if author_id_parameter != "" {
+		err := *new(error)
+		author_uuid, err := uuid.Parse(author_id_parameter)
+		if err != nil {
+			log.Printf("Error decoding parameters: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+		db_all_chirps, err = cfg.dbq.GetSpecificUserChirps(r.Context(), author_uuid)
+		if err != nil {
+			log.Printf("Error creating user: %s", err)
+			w.WriteHeader(500) //TODO need better response to return info that failed to retreive all chirps
+			return
+		}
+	} else {
+		err := *new(error)
+		db_all_chirps, err = cfg.dbq.GetAllChirps(r.Context())
+		if err != nil {
+			log.Printf("Error creating user: %s", err)
+			w.WriteHeader(500) //TODO need better response to return info that failed to retreive all chirps
+			return
+		}
 	}
+
 
 	result_slice := make([]Chirp, 0)
 
