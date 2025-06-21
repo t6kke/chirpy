@@ -7,6 +7,11 @@ RETURNING *;
 SELECT * FROM chirps
 order by created_at ASC;
 
+-- name: GetSpecificUserChirps :many
+SELECT * FROM chirps
+WHERE user_id = $1
+order by created_at ASC;
+
 -- name: GetOneChirp :one
 SELECT * FROM chirps
 WHERE id = $1;
